@@ -68,6 +68,6 @@ A prediction market web application for BTC/USD price direction trading with sho
 ## Notes
 
 - All balances are in-memory and lost on server restart — use a DB for production persistence
-- Deposit detection uses event watching on Polygon; deposits credit the site's in-memory balance
+- Deposit detection polls Polygon blocks with `getLogs` for USDC transfers into the site wallet; the sender wallet address is used as the user ID to credit the in-memory balance
 - Winnings from predictions are automatically credited back to user balance when positions settle
 - The site wallet must hold USDC on Polygon to fund withdrawals

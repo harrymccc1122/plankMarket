@@ -5,7 +5,9 @@ import { creditBalance } from './balanceStore';
 
 const USDC_ADDRESS = '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359' as const;
 const POLL_INTERVAL_MS = 12_000;
+const BLOCK_CONFIRMATIONS = 2n;
 const STARTUP_LOOKBACK_BLOCKS = 30n;
+const MAX_BLOCK_RANGE = 250n;
 
 const TRANSFER_EVENT = parseAbiItem(
   'event Transfer(address indexed from, address indexed to, uint256 value)',
@@ -20,12 +22,13 @@ const RPC_URLS = [
 declare global {
   var __plankWatcherStarted: boolean | undefined;
   var __plankLastScannedBlock: bigint | undefined;
-  var __plankProcessedTxs: Set<string> | undefined;
+  var __plankProcessedDeposits: Set<string> | undefined;
+  var __plankDepositPollInFlight: boolean | undefined;
 }
 
-function getProcessedTxs(): Set<string> {
-  if (!globalThis.__plankProcessedTxs) globalThis.__plankProcessedTxs = new Set();
-  return globalThis.__plankProcessedTxs;
+function getProcessedDeposits(): Set<string> {
+  if (!globalThis.__plankProcessedDeposits) globalThis.__plankProcessedDeposits = new Set();
+  return globalThis.__plankProcessedDeposits;
 }
 
 function getSiteWalletAddress(): string {
@@ -49,39 +52,56 @@ async function tryRpc<T>(fn: (client: ReturnType<typeof createPublicClient>) => 
 }
 
 async function pollDeposits(siteWalletAddress: string) {
+  if (globalThis.__plankDepositPollInFlight) return;
+  globalThis.__plankDepositPollInFlight = true;
+
   try {
     await tryRpc(async (client) => {
       const latestBlock = await client.getBlockNumber();
+      const confirmedBlock = latestBlock > BLOCK_CONFIRMATIONS ? latestBlock - BLOCK_CONFIRMATIONS : 0n;
 
       if (!globalThis.__plankLastScannedBlock) {
-        globalThis.__plankLastScannedBlock = latestBlock - STARTUP_LOOKBACK_BLOCKS;
+        globalThis.__plankLastScannedBlock = confirmedBlock > STARTUP_LOOKBACK_BLOCKS
+          ? confirmedBlock - STARTUP_LOOKBACK_BLOCKS
+          : 0n;
       }
 
       const fromBlock = globalThis.__plankLastScannedBlock;
-      if (latestBlock < fromBlock) return;
+      if (confirmedBlock < fromBlock) return;
+
+      const toBlock = fromBlock + MAX_BLOCK_RANGE < confirmedBlock
+        ? fromBlock + MAX_BLOCK_RANGE
+        : confirmedBlock;
 
       const logs = await client.getLogs({
         address: USDC_ADDRESS,
         event: TRANSFER_EVENT,
         args: { to: siteWalletAddress as `0x${string}` },
         fromBlock,
-        toBlock: latestBlock,
+        toBlock,
       });
 
-      globalThis.__plankLastScannedBlock = latestBlock + 1n;
+      globalThis.__plankLastScannedBlock = toBlock + 1n;
 
-      const processedTxs = getProcessedTxs();
+      const processedDeposits = getProcessedDeposits();
 
       for (const log of logs) {
         const txHash = log.transactionHash;
-        if (!txHash || processedTxs.has(txHash)) continue;
+        const logIndex = log.logIndex;
+        const depositKey = txHash && logIndex !== null ? `${txHash}:${logIndex}` : undefined;
+
+        if (!depositKey || processedDeposits.has(depositKey)) continue;
 
         const from = log.args.from?.toLowerCase();
         const value = log.args.value;
 
         if (!from || value === undefined) continue;
 
-        processedTxs.add(txHash);
+        processedDeposits.add(depositKey);
+        if (processedDeposits.size > 5_000) {
+          const oldestKey = processedDeposits.values().next().value;
+          if (oldestKey) processedDeposits.delete(oldestKey);
+        }
         const usdcAmount = Number(formatUnits(value, 6));
         const newBalance = creditBalance(from, usdcAmount);
 
@@ -92,6 +112,8 @@ async function pollDeposits(siteWalletAddress: string) {
     });
   } catch (err: any) {
     console.error('[DepositWatcher] Poll failed across all RPCs:', err?.message ?? err);
+  } finally {
+    globalThis.__plankDepositPollInFlight = false;
   }
 }
 
