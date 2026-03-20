@@ -11,7 +11,7 @@ import { Market, MARKETS } from './types';
 import { useAccount } from 'wagmi';
 
 function AppContent() {
-  const { price, history, cycleStartPrices, orders, predictions } = useBTCPrice();
+  const { price, history, cycleStartPrices, orders, predictions, error } = useBTCPrice();
   const { address } = useAccount();
   const [selectedMarket, setSelectedMarket] = useState<Market>(MARKETS[0]);
   const [activeTab, setActiveTab] = useState<'trade' | 'api'>('trade');
@@ -47,7 +47,7 @@ function AppContent() {
 
   return (
     <div className="min-h-screen bg-[#050505] text-white font-sans selection:bg-emerald-500/30">
-      <Header />
+      <Header marketError={error} />
       
       <main className="max-w-7xl mx-auto px-6 py-8">
         {/* Navigation Tabs */}
@@ -133,7 +133,7 @@ function AppContent() {
         <p className="text-xs text-zinc-600 max-w-2xl mx-auto leading-relaxed">
           Plank is a decentralized prediction market. Trading involves significant risk. 
           Ensure you understand the mechanics of short-window markets before participating.
-          Data provided by CoinAPI.
+          Live BTC pricing is sourced from Binance public market data.
         </p>
       </footer>
     </div>

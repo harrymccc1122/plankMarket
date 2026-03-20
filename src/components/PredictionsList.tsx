@@ -28,7 +28,7 @@ function Countdown({ endTime }: { endTime: number }) {
 
 export function PredictionsList({ predictions, orders = [], userId }: { predictions: Prediction[], orders?: Order[], userId?: string }) {
   const openOrders = orders.filter(o => o.status === 'open' && (!userId || o.userId === userId));
-  const userPredictions = predictions.filter(p => !userId || p.id.startsWith(userId));
+  const userPredictions = predictions.filter(p => !userId || p.userId === userId);
 
   if (userPredictions.length === 0 && openOrders.length === 0) {
     return (

@@ -30,6 +30,7 @@ export interface OrderBookEntry {
 
 export interface Prediction {
   id: string;
+  userId: string;
   marketId: string;
   startTime: number;
   endTime: number;
@@ -39,7 +40,9 @@ export interface Prediction {
   status: 'pending' | 'won' | 'lost';
   endPrice?: number;
   entryPrice?: number; // Price per share (0-1)
+  shares?: number;
 }
+
 
 export const MARKETS: Market[] = [
   { id: '5s', name: '5 Seconds', duration: 5 },
