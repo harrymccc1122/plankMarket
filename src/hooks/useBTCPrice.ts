@@ -28,7 +28,7 @@ export function useBTCPrice() {
     };
 
     fetchData();
-    const interval = setInterval(fetchData, 10000);
+    const interval = setInterval(fetchData, 300);
     return () => clearInterval(interval);
   }, []);
 

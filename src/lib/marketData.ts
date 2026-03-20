@@ -1,7 +1,7 @@
 import { MARKETS, Order, Prediction, PriceData } from '../types';
 
 const COINAPI_BASE = 'https://rest.coinapi.io/v1';
-const CACHE_TTL_MS = 9_000;
+const CACHE_TTL_MS = 3_000;
 const MAX_HISTORY_POINTS = 360; // 6 minutes of 1-sec data
 
 type MarketState = {
