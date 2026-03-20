@@ -1,7 +1,6 @@
 import { MARKETS, Order, Prediction, PriceData } from '../types';
 
-const BINANCE_PRICE_URL = 'https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT';
-const BINANCE_KLINES_URL = 'https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1s&limit=60';
+const COINAPI_BASE = 'https://rest.coinapi.io/v1';
 
 type MarketState = {
   price: number | null;
@@ -10,8 +9,16 @@ type MarketState = {
 };
 
 async function fetchJson<T>(url: string): Promise<T> {
+  const apiKey = process.env.COINAPI_KEY;
+  if (!apiKey) {
+    throw new Error('COINAPI_KEY is not configured');
+  }
+
   const response = await fetch(url, {
-    headers: { Accept: 'application/json' },
+    headers: {
+      Accept: 'application/json',
+      'X-CoinAPI-Key': apiKey,
+    },
     cache: 'no-store',
   });
 
@@ -23,18 +30,28 @@ async function fetchJson<T>(url: string): Promise<T> {
 }
 
 export async function getLiveMarketState(now = Date.now()): Promise<MarketState> {
-  const [ticker, klines] = await Promise.all([
-    fetchJson<{ price: string }>(BINANCE_PRICE_URL),
-    fetchJson<Array<[number, string, string, string, string, string, number, string, number, string, string, string]>>(BINANCE_KLINES_URL),
+  type ExchangeRate = { rate: number; time: string };
+  type OHLCVEntry = {
+    time_period_start: string;
+    time_period_end: string;
+    price_close: number;
+    price_open: number;
+  };
+
+  const [rate, ohlcv] = await Promise.all([
+    fetchJson<ExchangeRate>(`${COINAPI_BASE}/exchangerate/BTC/USD`),
+    fetchJson<OHLCVEntry[]>(`${COINAPI_BASE}/ohlcv/BITSTAMP_SPOT_BTC_USD/latest?period_id=1SEC&limit=60`),
   ]);
 
-  const livePrice = Number(ticker.price);
-  const history = klines
+  const livePrice = Number(rate.rate);
+
+  const history: PriceData[] = ohlcv
     .map((entry) => ({
-      time: Number(entry[0]),
-      price: Number(entry[4]),
+      time: new Date(entry.time_period_start).getTime(),
+      price: Number(entry.price_close),
     }))
-    .filter((entry) => Number.isFinite(entry.price));
+    .filter((entry) => Number.isFinite(entry.price) && entry.time > 0)
+    .sort((a, b) => a.time - b.time);
 
   const latestPrice = Number.isFinite(livePrice)
     ? livePrice
