@@ -7,6 +7,7 @@ export function useBTCPrice() {
   const [cycleStartPrices, setCycleStartPrices] = useState<Record<string, number>>({});
   const [orders, setOrders] = useState<Order[]>([]);
   const [predictions, setPredictions] = useState<Prediction[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -19,8 +20,10 @@ export function useBTCPrice() {
         setCycleStartPrices(data.cycleStartPrices);
         setOrders(data.orders);
         setPredictions(data.predictions);
+        setError(null);
       } catch (error) {
         console.error('Error fetching market state:', error);
+        setError(error instanceof Error ? error.message : 'Failed to fetch market state');
       }
     };
 
@@ -29,5 +32,5 @@ export function useBTCPrice() {
     return () => clearInterval(interval);
   }, []);
 
-  return { price, history, cycleStartPrices, orders, predictions };
+  return { price, history, cycleStartPrices, orders, predictions, error };
 }

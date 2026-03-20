@@ -1,20 +1,25 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# Plank Market
 
-# Run and deploy your AI Studio app
+Plank Market is a Vite + React trading UI for short-window BTC up/down markets.
 
-This contains everything you need to run your app locally.
-
-View your app in AI Studio: https://ai.studio/apps/63ea050e-5df8-4e65-90b6-dad373010e29
-
-## Run Locally
-
-**Prerequisites:**  Node.js
-
+## Local development
 
 1. Install dependencies:
    `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
+2. Start the frontend dev server:
    `npm run dev`
+3. In a second terminal, run the API-compatible local server if needed:
+   `npm run dev:server`
+
+## Deployment
+
+The app is configured to run on Vercel as a static frontend with serverless API routes under `/api`. Live BTC pricing is fetched on demand from Binance's public market data endpoints.
+
+## Trading model
+
+- `/api/market/state` returns the current BTC price, 1-second history, cycle lock prices, open orders, and user predictions.
+- `/api/order` accepts market and limit orders.
+- `/api/orders` returns orders and predictions for a connected wallet.
+- `/api/order/[id]` cancels open limit orders.
+
+> Note: without a shared external database, orders are stored in process memory. This works for local development and warm serverless instances, but you should add durable storage before treating it as production-grade custody or matching infrastructure.
