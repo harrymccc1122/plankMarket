@@ -4,7 +4,7 @@ import path from 'path';
 import { cancelOrder, createOrder, getMarketSnapshot, getUserOrders } from './src/lib/tradeStore';
 
 const app = express();
-const PORT = Number(process.env.PORT ?? 3000);
+const PORT = Number(process.env.PORT ?? 5000);
 
 app.use(express.json());
 
@@ -62,7 +62,7 @@ app.delete('/api/order/:id', async (req, res) => {
 async function startServer() {
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({
-      server: { middlewareMode: true },
+      server: { middlewareMode: true, allowedHosts: true },
       appType: 'spa',
     });
     app.use(vite.middlewares);
