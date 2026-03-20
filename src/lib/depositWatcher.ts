@@ -103,7 +103,7 @@ async function pollDeposits(siteWalletAddress: string) {
           if (oldestKey) processedDeposits.delete(oldestKey);
         }
         const usdcAmount = Number(formatUnits(value, 6));
-        const newBalance = creditBalance(from, usdcAmount);
+        const newBalance = await creditBalance(from, usdcAmount);
 
         console.log(
           `[DepositWatcher] +${usdcAmount} USDC from ${from} (tx: ${txHash}). Balance: $${newBalance.toFixed(2)}`,

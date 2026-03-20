@@ -1,7 +1,7 @@
 import { createWalletClient, createPublicClient, http, parseAbi, parseUnits } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import { polygon } from 'viem/chains';
-import { debitBalance } from './balanceStore';
+import { creditBalance, debitBalance } from './balanceStore';
 
 const USDC_ADDRESS = '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359' as const;
 const USDC_ABI = parseAbi([
@@ -28,7 +28,7 @@ export async function processWithdrawal(userId: string, toAddress: string, amoun
   if (amount <= 0) throw new Error('Amount must be greater than 0');
   if (amount < 1) throw new Error('Minimum withdrawal is 1 USDC');
 
-  debitBalance(userId, amount);
+  await debitBalance(userId, amount);
 
   try {
     const account = getSiteWallet();
@@ -52,7 +52,7 @@ export async function processWithdrawal(userId: string, toAddress: string, amoun
     console.log(`[Withdrawal] ${amount} USDC -> ${toAddress} | tx: ${hash}`);
     return hash;
   } catch (err) {
-    debitBalance(userId, -amount);
+    await creditBalance(userId, amount);
     throw err;
   }
 }

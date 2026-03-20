@@ -1,37 +1,41 @@
-declare global {
-  var __plankBalances: Map<string, number> | undefined;
+import { readDatabase, updateDatabase } from './localDatabase';
+
+function balanceKey(userId: string) {
+  return userId.toLowerCase();
 }
 
-function getBalances(): Map<string, number> {
-  if (!globalThis.__plankBalances) {
-    globalThis.__plankBalances = new Map();
-  }
-  return globalThis.__plankBalances;
+export async function getBalance(userId: string): Promise<number> {
+  const database = await readDatabase();
+  const value = database.balances[balanceKey(userId)];
+  return typeof value === 'number' ? value : 0;
 }
 
-export function getBalance(userId: string): number {
-  return getBalances().get(userId.toLowerCase()) ?? 0;
+export async function creditBalance(userId: string, amount: number): Promise<number> {
+  return updateDatabase((database) => {
+    const key = balanceKey(userId);
+    const currentBalance = database.balances[key] ?? 0;
+    const nextBalance = currentBalance + amount;
+    database.balances[key] = nextBalance;
+    return nextBalance;
+  });
 }
 
-export function creditBalance(userId: string, amount: number): number {
-  const balances = getBalances();
-  const key = userId.toLowerCase();
-  const current = balances.get(key) ?? 0;
-  const next = current + amount;
-  balances.set(key, next);
-  return next;
+export async function debitBalance(userId: string, amount: number): Promise<number> {
+  return updateDatabase((database) => {
+    const key = balanceKey(userId);
+    const currentBalance = database.balances[key] ?? 0;
+    if (currentBalance < amount) {
+      throw new Error('Insufficient balance');
+    }
+
+    const nextBalance = currentBalance - amount;
+    database.balances[key] = nextBalance;
+    return nextBalance;
+  });
 }
 
-export function debitBalance(userId: string, amount: number): number {
-  const balances = getBalances();
-  const key = userId.toLowerCase();
-  const current = balances.get(key) ?? 0;
-  if (current < amount) throw new Error('Insufficient balance');
-  const next = current - amount;
-  balances.set(key, next);
-  return next;
-}
-
-export function setBalance(userId: string, amount: number): void {
-  getBalances().set(userId.toLowerCase(), amount);
+export async function setBalance(userId: string, amount: number): Promise<void> {
+  await updateDatabase((database) => {
+    database.balances[balanceKey(userId)] = amount;
+  });
 }

@@ -1,52 +1,60 @@
 import { MARKETS, Order, Prediction } from '../types';
 import { expireOrders, getLiveMarketState, settlePredictions } from './marketData';
 import { creditBalance } from './balanceStore';
+import { readDatabase, updateDatabase } from './localDatabase';
 
 type Store = {
   orders: Order[];
   predictions: Prediction[];
-  settledIds: Set<string>;
+  settledIds: string[];
 };
-
-declare global {
-  var __plankStore: Store | undefined;
-}
-
-function getStore(): Store {
-  if (!globalThis.__plankStore) {
-    globalThis.__plankStore = { orders: [], predictions: [], settledIds: new Set() };
-  }
-  if (!globalThis.__plankStore.settledIds) {
-    globalThis.__plankStore.settledIds = new Set();
-  }
-  return globalThis.__plankStore;
-}
 
 function makeId(prefix: string) {
   return `${prefix}_${Math.random().toString(36).slice(2, 10)}`;
 }
 
-function creditSettledPredictions(predictions: Prediction[], store: Store) {
+async function getStore(): Promise<Store> {
+  const database = await readDatabase();
+  const value = database.tradeStore;
+  return {
+    orders: Array.isArray(value?.orders) ? value.orders : [],
+    predictions: Array.isArray(value?.predictions) ? value.predictions : [],
+    settledIds: Array.isArray(value?.settledIds) ? value.settledIds : [],
+  };
+}
+
+async function saveStore(store: Store): Promise<void> {
+  await updateDatabase((database) => {
+    database.tradeStore = store;
+  });
+}
+
+async function creditSettledPredictions(predictions: Prediction[], store: Store) {
+  const settledIds = new Set(store.settledIds);
+
   for (const p of predictions) {
-    if ((p.status === 'won' || p.status === 'lost') && !store.settledIds.has(p.id)) {
-      store.settledIds.add(p.id);
+    if ((p.status === 'won' || p.status === 'lost') && !settledIds.has(p.id)) {
+      settledIds.add(p.id);
       if (p.status === 'won' && p.shares) {
-        creditBalance(p.userId, p.shares);
+        await creditBalance(p.userId, p.shares);
         console.log(`[TradeStore] Prediction ${p.id} WON: credited ${p.shares.toFixed(4)} USDC to ${p.userId}`);
       }
     }
   }
+
+  store.settledIds = Array.from(settledIds);
 }
 
 export async function getMarketSnapshot() {
-  const store = getStore();
+  const store = await getStore();
   const marketState = await getLiveMarketState();
   const now = Date.now();
 
   store.orders = expireOrders(store.orders, now);
   store.predictions = settlePredictions(store.predictions, marketState.price, now);
 
-  creditSettledPredictions(store.predictions, store);
+  await creditSettledPredictions(store.predictions, store);
+  await saveStore(store);
 
   return {
     ...marketState,
@@ -57,7 +65,7 @@ export async function getMarketSnapshot() {
 
 export async function getUserOrders(userId: string) {
   await getMarketSnapshot();
-  const store = getStore();
+  const store = await getStore();
   return {
     orders: store.orders.filter((order) => order.userId === userId),
     predictions: store.predictions.filter((prediction) => prediction.userId === userId),
@@ -72,7 +80,7 @@ export async function createOrder(input: {
   type: 'market' | 'limit';
   limitPrice?: number;
 }) {
-  const store = getStore();
+  const store = await getStore();
   const snapshot = await getMarketSnapshot();
   const market = MARKETS.find((entry) => entry.id === input.marketId);
 
@@ -107,6 +115,7 @@ export async function createOrder(input: {
     };
 
     store.orders.push(order);
+    await saveStore(store);
     return { order };
   }
 
@@ -127,11 +136,12 @@ export async function createOrder(input: {
   };
 
   store.predictions.push(prediction);
+  await saveStore(store);
   return { prediction, filled: input.amount };
 }
 
 export async function cancelOrder(id: string) {
-  const store = getStore();
+  const store = await getStore();
   const order = store.orders.find((entry) => entry.id === id && entry.status === 'open');
 
   if (!order) {
@@ -139,7 +149,8 @@ export async function cancelOrder(id: string) {
   }
 
   order.status = 'cancelled';
-  creditBalance(order.userId, order.amount);
+  await creditBalance(order.userId, order.amount);
+  await saveStore(store);
   console.log(`[TradeStore] Order ${id} cancelled: refunded ${order.amount} USDC to ${order.userId}`);
   return { success: true, order };
 }

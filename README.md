@@ -11,6 +11,10 @@ Plank Market is a Vite + React trading UI for short-window BTC up/down markets.
 3. In a second terminal, run the API-compatible local server if needed:
    `npm run dev:server`
 
+## Persistence
+
+The local server stores balances, orders, predictions, and settlement markers in a **local JSON database file** on your PC. By default the file is created at `./data/plank-market.json`, or you can override the path with `LOCAL_DB_FILE` in `.env`.
+
 ## Deployment
 
 The app is configured to run on Vercel as a static frontend with serverless API routes under `/api`. Live BTC pricing is fetched on demand from Binance's public market data endpoints.
@@ -22,4 +26,4 @@ The app is configured to run on Vercel as a static frontend with serverless API 
 - `/api/orders` returns orders and predictions for a connected wallet.
 - `/api/order/[id]` cancels open limit orders.
 
-> Note: without a shared external database, orders are stored in process memory. This works for local development and warm serverless instances, but you should add durable storage before treating it as production-grade custody or matching infrastructure.
+> Note: this project now persists runtime state to a local file on the machine running `npm run dev:server`, so balances and orders survive process restarts as long as that file stays in place.

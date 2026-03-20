@@ -3,7 +3,7 @@ import express from 'express';
 import { createServer as createViteServer } from 'vite';
 import path from 'path';
 import { cancelOrder, createOrder, getMarketSnapshot, getUserOrders } from './src/lib/tradeStore';
-import { getBalance, debitBalance } from './src/lib/balanceStore';
+import { getBalance, debitBalance, creditBalance } from './src/lib/balanceStore';
 import { startDepositWatcher } from './src/lib/depositWatcher';
 import { processWithdrawal, getSiteWalletAddress } from './src/lib/withdrawal';
 
@@ -40,16 +40,25 @@ app.post('/api/order', async (req, res) => {
     return res.status(400).json({ error: 'Invalid order payload' });
   }
 
-  const balance = getBalance(userId);
+  const balance = await getBalance(userId);
   if (balance < amountNum) {
     return res.status(400).json({ error: `Insufficient balance. You have ${balance.toFixed(2)} USDC.` });
   }
 
+  let balanceDebited = false;
   try {
-    debitBalance(userId, amountNum);
+    await debitBalance(userId, amountNum);
+    balanceDebited = true;
     const result = await createOrder({ userId, marketId, direction, amount: amountNum, type, limitPrice: typeof limitPrice === 'number' ? limitPrice : undefined });
     res.json(result);
   } catch (error) {
+    if (balanceDebited) {
+      try {
+        await creditBalance(userId, amountNum);
+      } catch {
+        // Ignore refund errors here; the original error is returned to the client and logs will show Firebase issues.
+      }
+    }
     res.status(400).json({ error: error instanceof Error ? error.message : 'Failed to create order' });
   }
 });
@@ -68,7 +77,7 @@ app.get('/api/balance', async (req, res) => {
     return res.status(400).json({ error: 'userId required' });
   }
   try {
-    const balance = getBalance(userId);
+    const balance = await getBalance(userId);
     res.json({ balance });
   } catch (error) {
     res.status(500).json({ error: 'Failed to get balance' });
