@@ -1,9 +1,11 @@
 import { MARKETS, Order, Prediction } from '../types';
 import { expireOrders, getLiveMarketState, settlePredictions } from './marketData';
+import { creditBalance } from './balanceStore';
 
 type Store = {
   orders: Order[];
   predictions: Prediction[];
+  settledIds: Set<string>;
 };
 
 declare global {
@@ -12,13 +14,28 @@ declare global {
 
 function getStore(): Store {
   if (!globalThis.__plankStore) {
-    globalThis.__plankStore = { orders: [], predictions: [] };
+    globalThis.__plankStore = { orders: [], predictions: [], settledIds: new Set() };
+  }
+  if (!globalThis.__plankStore.settledIds) {
+    globalThis.__plankStore.settledIds = new Set();
   }
   return globalThis.__plankStore;
 }
 
 function makeId(prefix: string) {
   return `${prefix}_${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function creditSettledPredictions(predictions: Prediction[], store: Store) {
+  for (const p of predictions) {
+    if ((p.status === 'won' || p.status === 'lost') && !store.settledIds.has(p.id)) {
+      store.settledIds.add(p.id);
+      if (p.status === 'won' && p.shares) {
+        creditBalance(p.userId, p.shares);
+        console.log(`[TradeStore] Prediction ${p.id} WON: credited ${p.shares.toFixed(4)} USDC to ${p.userId}`);
+      }
+    }
+  }
 }
 
 export async function getMarketSnapshot() {
@@ -28,6 +45,8 @@ export async function getMarketSnapshot() {
 
   store.orders = expireOrders(store.orders, now);
   store.predictions = settlePredictions(store.predictions, marketState.price, now);
+
+  creditSettledPredictions(store.predictions, store);
 
   return {
     ...marketState,
@@ -120,5 +139,7 @@ export async function cancelOrder(id: string) {
   }
 
   order.status = 'cancelled';
+  creditBalance(order.userId, order.amount);
+  console.log(`[TradeStore] Order ${id} cancelled: refunded ${order.amount} USDC to ${order.userId}`);
   return { success: true, order };
 }

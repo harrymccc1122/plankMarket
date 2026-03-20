@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { ArrowUp, ArrowDown, Wallet, Clock, Info } from 'lucide-react';
+import { ArrowUp, ArrowDown, Wallet, Clock, Info, PlusCircle } from 'lucide-react';
 import { Market, Order } from '../types';
 import { useAccount } from 'wagmi';
 import { useConnectModal } from '@rainbow-me/rainbowkit';
@@ -10,13 +10,17 @@ export function BettingPanel({
   currentPrice,
   lockInPrice,
   onBet,
-  orders
+  orders,
+  balance,
+  onOpenWallet,
 }: { 
   market: Market, 
   currentPrice: number | null,
   lockInPrice: number | null,
   onBet: (direction: 'up' | 'down', amount: string, type: 'market' | 'limit', limitPrice?: number) => void,
-  orders: Order[]
+  orders: Order[],
+  balance: number,
+  onOpenWallet: () => void,
 }) {
   const [amount, setAmount] = useState('10');
   const [limitPrice, setLimitPrice] = useState('0.50');
@@ -229,6 +233,14 @@ export function BettingPanel({
         >
           <Wallet className="w-5 h-5" />
           Connect Wallet to Trade
+        </button>
+      ) : balance < parseFloat(amount || '0') ? (
+        <button
+          onClick={onOpenWallet}
+          className="w-full bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-500 font-bold py-4 rounded-xl flex items-center justify-center gap-2 transition-colors"
+        >
+          <PlusCircle className="w-5 h-5" />
+          Deposit USDC to Trade
         </button>
       ) : (
         <div className="grid grid-cols-2 gap-4">
