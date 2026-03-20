@@ -1,4 +1,4 @@
-import { createWalletClient, createPublicClient, http, parseAbi, parseUnits, encodeFunctionData } from 'viem';
+import { createWalletClient, createPublicClient, http, parseAbi, parseUnits } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import { polygon } from 'viem/chains';
 import { debitBalance } from './balanceStore';
@@ -40,15 +40,13 @@ export async function processWithdrawal(userId: string, toAddress: string, amoun
 
     const usdcAmount = parseUnits(amount.toFixed(6), 6);
 
-    const data = encodeFunctionData({
+    const hash = await walletClient.writeContract({
+      account,
+      chain: polygon,
       abi: USDC_ABI,
       functionName: 'transfer',
       args: [toAddress as `0x${string}`, usdcAmount],
-    });
-
-    const hash = await walletClient.sendTransaction({
-      to: USDC_ADDRESS,
-      data,
+      address: USDC_ADDRESS,
     });
 
     console.log(`[Withdrawal] ${amount} USDC -> ${toAddress} | tx: ${hash}`);
