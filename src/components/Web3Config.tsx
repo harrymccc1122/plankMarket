@@ -1,13 +1,15 @@
 import '@rainbow-me/rainbowkit/styles.css';
-import { getDefaultConfig, RainbowKitProvider, darkTheme } from '@rainbow-me/rainbowkit';
-import { WagmiProvider } from 'wagmi';
-import { mainnet, polygon, arbitrum, optimism } from 'wagmi/chains';
-import { QueryClientProvider, QueryClient } from "@tanstack/react-query";
 import React from 'react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { darkTheme, getDefaultConfig, RainbowKitProvider } from '@rainbow-me/rainbowkit';
+import { WagmiProvider } from 'wagmi';
+import { arbitrum, mainnet, optimism, polygon } from 'wagmi/chains';
+
+const projectId = import.meta.env.VITE_WALLETCONNECT_PROJECT_ID || 'demo-project-id';
 
 const config = getDefaultConfig({
   appName: 'Plank',
-  projectId: 'YOUR_PROJECT_ID', // In a real app, this would be from env
+  projectId,
   chains: [mainnet, polygon, arbitrum, optimism],
   ssr: false,
 });
@@ -18,11 +20,7 @@ export function Web3Config({ children }: { children: React.ReactNode }) {
   return (
     <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>
-        <RainbowKitProvider theme={darkTheme({
-          accentColor: '#10b981', // emerald-500
-          accentColorForeground: 'white',
-          borderRadius: 'medium',
-        })}>
+        <RainbowKitProvider theme={darkTheme({ accentColor: '#10b981', accentColorForeground: 'white', borderRadius: 'medium' })}>
           {children}
         </RainbowKitProvider>
       </QueryClientProvider>

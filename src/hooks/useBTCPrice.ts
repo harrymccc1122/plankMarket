@@ -1,33 +1,40 @@
-import { useState, useEffect } from 'react';
-import { PriceData, Prediction, Order } from '../types';
+import { useCallback, useEffect, useState } from 'react';
+import { MarketStateResponse } from '../types';
+
+const EMPTY_STATE: MarketStateResponse = {
+  price: null,
+  priceUpdatedAt: null,
+  priceSource: 'fallback',
+  history: [],
+  cycleStartPrices: {},
+  orders: [],
+  predictions: [],
+};
 
 export function useBTCPrice() {
-  const [price, setPrice] = useState<number | null>(null);
-  const [history, setHistory] = useState<PriceData[]>([]);
-  const [cycleStartPrices, setCycleStartPrices] = useState<Record<string, number>>({});
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [predictions, setPredictions] = useState<Prediction[]>([]);
+  const [state, setState] = useState<MarketStateResponse>(EMPTY_STATE);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const response = await fetch('/api/market/state');
-        if (!response.ok) throw new Error('Failed to fetch market state');
-        const data = await response.json();
-        setPrice(data.price);
-        setHistory(data.history);
-        setCycleStartPrices(data.cycleStartPrices);
-        setOrders(data.orders);
-        setPredictions(data.predictions);
-      } catch (error) {
-        console.error('Error fetching market state:', error);
+  const refresh = useCallback(async () => {
+    try {
+      const response = await fetch('/api/market/state', { cache: 'no-store' });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to fetch market state');
       }
-    };
-
-    fetchData();
-    const interval = setInterval(fetchData, 1000);
-    return () => clearInterval(interval);
+      setState(data);
+      setError(null);
+    } catch (fetchError) {
+      console.error('Error fetching market state:', fetchError);
+      setError(fetchError instanceof Error ? fetchError.message : 'Failed to fetch market state');
+    }
   }, []);
 
-  return { price, history, cycleStartPrices, orders, predictions };
+  useEffect(() => {
+    refresh();
+    const interval = setInterval(refresh, 1000);
+    return () => clearInterval(interval);
+  }, [refresh]);
+
+  return { ...state, error, refresh };
 }

@@ -1,20 +1,32 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# Plank Market
 
-# Run and deploy your AI Studio app
+Plank is a Vite + React BTC micro-prediction market UI with a lightweight backend order book.
 
-This contains everything you need to run your app locally.
+## What changed
 
-View your app in AI Studio: https://ai.studio/apps/63ea050e-5df8-4e65-90b6-dad373010e29
+- Live BTC pricing now comes from Coinbase spot data via server-side API routes.
+- Orders and positions are served through Vercel-compatible `/api/*` functions.
+- Limit orders, market order matching, cancellations, and automatic settlement are handled in the backend.
+- Optional Vercel KV persistence keeps trades and open orders across serverless invocations.
 
-## Run Locally
-
-**Prerequisites:**  Node.js
-
+## Local development
 
 1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+   ```bash
+   npm install
+   ```
+2. Copy `.env.example` to `.env` and set values if needed.
+3. Start the app:
+   ```bash
+   npm run dev
+   ```
+
+## Deploying on Vercel
+
+Add these environment variables in Vercel if you want persistent trading state:
+
+- `VITE_WALLETCONNECT_PROJECT_ID`
+- `KV_REST_API_URL`
+- `KV_REST_API_TOKEN`
+
+If KV is not configured, the UI still works locally, but trade state will reset when a serverless function is cold-started.

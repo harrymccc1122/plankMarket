@@ -1,0 +1,22 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "functions": {
+    "api/*.ts": {
+      "runtime": "nodejs22.x"
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/api/market/state",
+      "destination": "/api/market-state"
+    },
+    {
+      "source": "/api/orders",
+      "destination": "/api/orders"
+    },
+    {
+      "source": "/api/order",
+      "destination": "/api/order"
+    }
+  ]
+}

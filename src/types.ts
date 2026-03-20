@@ -6,7 +6,7 @@ export interface PriceData {
 export interface Market {
   id: string;
   name: string;
-  duration: number; // in seconds
+  duration: number;
 }
 
 export interface Order {
@@ -14,31 +14,39 @@ export interface Order {
   marketId: string;
   userId: string;
   direction: 'up' | 'down';
-  price: number; // 0 to 1 USDC per share
-  amount: number; // total USDC to spend
-  shares: number; // amount / price
-  status: 'open' | 'filled' | 'cancelled';
+  price: number;
+  amount: number;
+  shares: number;
+  remainingAmount: number;
+  status: 'open' | 'filled' | 'cancelled' | 'partial';
   timestamp: number;
   endTime: number;
 }
 
-export interface OrderBookEntry {
-  price: number;
-  shares: number;
-  total: number;
-}
-
 export interface Prediction {
   id: string;
+  userId: string;
   marketId: string;
   startTime: number;
   endTime: number;
   startPrice: number;
   direction: 'up' | 'down';
   amount: string;
+  shares: number;
   status: 'pending' | 'won' | 'lost';
   endPrice?: number;
-  entryPrice?: number; // Price per share (0-1)
+  entryPrice?: number;
+  settledAt?: number;
+}
+
+export interface MarketStateResponse {
+  price: number | null;
+  priceUpdatedAt: number | null;
+  priceSource?: 'exchange' | 'fallback';
+  history: PriceData[];
+  cycleStartPrices: Record<string, number>;
+  orders: Order[];
+  predictions: Prediction[];
 }
 
 export const MARKETS: Market[] = [
