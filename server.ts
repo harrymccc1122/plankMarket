@@ -2,21 +2,15 @@ import 'dotenv/config';
 import express from 'express';
 import { createServer as createViteServer } from 'vite';
 import path from 'path';
-import { createHash } from 'crypto';
 import { cancelOrder, createOrder, getMarketSnapshot, getUserOrders } from './src/lib/tradeStore';
 import { getBalance, debitBalance } from './src/lib/balanceStore';
-import { registerDepositAddress, getDepositAddress, startDepositWatcher } from './src/lib/depositWatcher';
+import { startDepositWatcher } from './src/lib/depositWatcher';
 import { processWithdrawal, getSiteWalletAddress } from './src/lib/withdrawal';
 
 const app = express();
 const PORT = Number(process.env.PORT ?? 5000);
 
 app.use(express.json());
-
-function deriveDepositAddress(userId: string, siteWalletAddress: string): string {
-  const hash = createHash('sha256').update(`${siteWalletAddress}:${userId.toLowerCase()}`).digest('hex');
-  return `0x${hash.slice(0, 40)}`;
-}
 
 app.get('/api/market/state', async (_req, res) => {
   try {
@@ -87,14 +81,10 @@ app.get('/api/deposit-address', async (req, res) => {
     return res.status(400).json({ error: 'userId required' });
   }
   try {
-    let depositAddress = getDepositAddress(userId);
-    if (!depositAddress) {
-      const siteWallet = await getSiteWalletAddress();
-      depositAddress = deriveDepositAddress(userId, siteWallet);
-      registerDepositAddress(depositAddress, userId);
-    }
     const siteWallet = await getSiteWalletAddress();
-    res.json({ depositAddress: siteWallet, derivedAddress: depositAddress });
+    // Users send USDC from their connected wallet to the site wallet.
+    // The sender address (= userId) is used to credit their balance automatically.
+    res.json({ depositAddress: siteWallet });
   } catch (error) {
     res.status(500).json({ error: error instanceof Error ? error.message : 'Failed to get deposit address' });
   }
