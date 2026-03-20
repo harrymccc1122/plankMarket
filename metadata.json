@@ -1,0 +1,5 @@
+{
+  "name": "Plank",
+  "description": "Short-window BTC up/down prediction markets (5s, 30s, 1m, 5m) with Web3 wallet integration.",
+  "requestFramePermissions": []
+}
